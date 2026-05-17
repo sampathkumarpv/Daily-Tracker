@@ -67,6 +67,18 @@ export const IconX = ({ size = 16, color }: { size?: number; color?: string }) =
   </svg>
 );
 
+export const IconExpand = ({ size = 16, color }: { size?: number; color?: string }) => (
+  <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
+    <path d="M2 6 V2 H6 M10 2 H14 V6 M14 10 V14 H10 M6 14 H2 V10" />
+  </svg>
+);
+
+export const IconCollapse = ({ size = 16, color }: { size?: number; color?: string }) => (
+  <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
+    <path d="M6 2 V6 H2 M14 6 H10 V2 M10 14 V10 H14 M2 10 H6 V14" />
+  </svg>
+);
+
 export const IconArrowRight = ({ size = 16, color }: { size?: number; color?: string }) => (
   <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
     <path d="M3 8 H13 M9 4 L13 8 L9 12" />

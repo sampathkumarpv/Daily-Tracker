@@ -1,0 +1,105 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: calc(16px * var(--font-scale, 1));
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* scrollbar styling for a lighter feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-pencil, #8a8478) 35%, transparent);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-pencil, #8a8478) 55%, transparent);
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Placeholder for contentEditable scratchpad */
+[data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: rgba(138, 132, 120, 0.45);
+  pointer-events: none;
+}
+
+/* Darker strikethrough line in scratchpad */
+[data-placeholder] s {
+  text-decoration-color: rgba(60, 55, 45, 0.75);
+}
+
+/* Scratchpad checkbox styling */
+.scratch-checkbox {
+  cursor: pointer;
+  user-select: none;
+  font-size: 1.1em;
+  margin-right: 0.25rem;
+  transition: transform 0.1s ease;
+}
+.scratch-checkbox:hover {
+  transform: scale(1.15);
+}
+.scratch-checkbox[data-checked="true"] {
+  color: var(--color-teal);
+}
+
+/* Scratchpad link styling */
+.scratch-link,
+[data-placeholder] a {
+  color: var(--color-teal, #3d9a8b);
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.scratch-link:hover,
+[data-placeholder] a:hover {
+  color: var(--color-coral, #e07a5f);
+  text-decoration-style: solid;
+}
+
+/* Mobile responsive: hide sidebar on narrow viewports */
+@media (max-width: 640px) {
+  aside {
+    display: none !important;
+  }
+}
+
+/* Focus pulse animation for highlighted tasks */
+@keyframes focusPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px var(--color-teal), 0 2px 8px rgba(61, 154, 139, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 5px var(--color-teal), 0 2px 16px rgba(61, 154, 139, 0.5);
+  }
+}

@@ -8,7 +8,7 @@ Backend for TaskFlow - a multi-tenant SaaS task management application with real
 
 | Component | Technology |
 |-----------|------------|
-| Language | Kotlin |
+| Language | Java |
 | Framework | Spring Boot 3 |
 | Database | PostgreSQL (single DB, shared schema) |
 | File Storage | MinIO (S3-compatible, self-hosted) |

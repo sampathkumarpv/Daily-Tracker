@@ -5,6 +5,7 @@ import { SketchBox, SketchPill } from '../ui/SketchBox';
 import { IconCalendar, IconClip, IconPlus, IconTrash, SketchCheck } from '../ui/Icons';
 import type { Task, Status } from '../../types';
 import { AddTaskModal } from './AddTaskModal';
+import { getDueDateLabel, isDueTodayOrOverdue } from '../../utils/dateUtils';
 
 interface Props {
   tasks: Task[];
@@ -143,9 +144,9 @@ export function AllTasksView({ tasks, onTaskClick, onAddTask, onDeleteTask, filt
                   <span style={{ fontFamily: FONTS.kalam, fontSize: 10, color: C.pencil }}>{t.area}</span>
                 )}
                 {t.dueDate && (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONTS.kalam, fontSize: 10, color: t.dueDate === 'Today' ? C.coral : C.pencil }}>
-                    <IconCalendar size={9} color={t.dueDate === 'Today' ? C.coral : C.pencil} />
-                    {t.dueDate}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONTS.kalam, fontSize: 10, color: isDueTodayOrOverdue(t.dueDate) ? C.coral : C.pencil }}>
+                    <IconCalendar size={9} color={isDueTodayOrOverdue(t.dueDate) ? C.coral : C.pencil} />
+                    {getDueDateLabel(t.dueDate)}
                   </span>
                 )}
                 {t.notecardIds.length > 0 && (

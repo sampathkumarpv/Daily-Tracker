@@ -3,6 +3,12 @@ import { C, FONTS, SHADOWS } from "../../theme";
 import { SketchBox } from "./SketchBox";
 import { IconExpand, IconCollapse } from "./Icons";
 
+export interface ScratchpadHistoryItem {
+  date: string | null;
+  content: string;
+  updatedAt: number | null;
+}
+
 export interface ScratchPadProps {
   floating?: boolean;
   content: string;
@@ -10,6 +16,15 @@ export interface ScratchPadProps {
   onToggleFloat: () => void;
   onChange: (value: string) => void;
   readOnly?: boolean;
+  // Date navigation props
+  currentDate?: string; // YYYY-MM-DD format, if provided enables navigation
+  onPrevDay?: () => void;
+  onNextDay?: () => void;
+  onGoToToday?: () => void; // Jump directly to today
+  canGoNext?: boolean; // Disable next when viewing today
+  // History for expanded view
+  history?: ScratchpadHistoryItem[];
+  onDateSelect?: (date: string) => void; // Called when clicking a history item
 }
 
 export function ScratchPad({
@@ -19,10 +34,40 @@ export function ScratchPad({
   onToggleFloat,
   onChange,
   readOnly = false,
+  currentDate,
+  onPrevDay,
+  onNextDay,
+  onGoToToday,
+  canGoNext = true,
+  history = [],
+  onDateSelect,
 }: ScratchPadProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const skipSync = useRef(false);
   const [selectionToolbar, setSelectionToolbar] = useState<{ x: number; y: number } | null>(null);
+
+  // Format date for display
+  const formatDateLabel = (dateStr: string): string => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0); // Use noon to avoid timezone issues
+    const date = new Date(dateStr + "T12:00:00"); // Use noon to avoid timezone issues
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Compare year, month, day directly to avoid time comparison issues
+    const isSameDay = (d1: Date, d2: Date) =>
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate();
+
+    if (isSameDay(date, today)) return "Today";
+    if (isSameDay(date, yesterday)) return "Yesterday";
+
+    const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  const showNavigation = currentDate && onPrevDay;
 
   // Sync content from parent (initial API load) without clobbering user edits
   useEffect(() => {
@@ -82,11 +127,48 @@ export function ScratchPad({
   };
 
   const insertCheckbox = () => {
-    if (readOnly) return;
-    editorRef.current?.focus();
+    if (readOnly || !editorRef.current) return;
+    editorRef.current.focus();
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    let node: Node | null = range.startContainer;
+
+    // Find the direct child of editor that contains our cursor (that's our "line")
+    let lineElement: Node | null = null;
+
+    while (node && node !== editorRef.current) {
+      if (node.parentNode === editorRef.current) {
+        // This node is a direct child of editor - it's our line
+        lineElement = node;
+        break;
+      }
+      node = node.parentNode;
+    }
+
+    const newRange = document.createRange();
+
+    if (lineElement) {
+      // Found the line element - insert at position 0 inside it
+      newRange.setStart(lineElement, 0);
+    } else {
+      // Cursor is directly in editor (rare) or first line is unwrapped text
+      // Insert at start of editor
+      newRange.setStart(editorRef.current, 0);
+    }
+    newRange.collapse(true);
+
+    // Set selection to line start
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+
+    // Insert checkbox at line start
     const checkboxHtml =
       '<span class="scratch-checkbox" data-checked="false" contenteditable="false">☐</span>&nbsp;';
     document.execCommand("insertHTML", false, checkboxHtml);
+
     if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
 
@@ -260,17 +342,131 @@ export function ScratchPad({
     setTimeout(autoLinkify, 0);
   };
 
+  // Format date for history display
+  const formatHistoryDate = (dateStr: string | null): string => {
+    if (!dateStr) return "Unknown date";
+    const date = new Date(dateStr + "T12:00:00");
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  // Split history into older (before currentDate) and newer (after currentDate)
+  const olderHistory = currentDate
+    ? history.filter((item) => item.date && item.date < currentDate).sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+    : [];
+  const newerHistory = currentDate
+    ? history.filter((item) => item.date && item.date > currentDate).sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    : [];
+
+  // Helper to render a history item
+  const renderHistoryItem = (item: ScratchpadHistoryItem, index: number, isLast: boolean) => (
+    <div
+      key={item.date || index}
+      onClick={() => item.date && onDateSelect?.(item.date)}
+      style={{
+        padding: "12px 24px",
+        borderBottom: !isLast ? `1px dashed ${C.pencilLight}` : "none",
+        cursor: onDateSelect && item.date ? "pointer" : "default",
+        transition: "background 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        if (onDateSelect && item.date) {
+          e.currentTarget.style.background = C.tealSoft;
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+      }}
+    >
+      <div
+        style={{
+          fontFamily: FONTS.kalam,
+          fontSize: 13,
+          color: C.teal,
+          marginBottom: 8,
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span>{formatHistoryDate(item.date)}</span>
+        {onDateSelect && item.date && (
+          <span style={{ fontSize: 11, opacity: 0.7 }}>click to view →</span>
+        )}
+      </div>
+      <div
+        style={{
+          fontFamily: FONTS.architects,
+          fontSize: 13,
+          color: C.inkSoft,
+          lineHeight: 1.7,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+        }}
+        dangerouslySetInnerHTML={{ __html: item.content }}
+      />
+    </div>
+  );
+
   return (
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        height: floating ? "92vh" : "auto",
+        maxHeight: floating ? "92vh" : "none",
+        width: floating ? 850 : "auto",
+        maxWidth: floating ? "95vw" : "none",
+        borderRadius: 3,
+        boxShadow: floating ? SHADOWS.modal : "none",
+        overflow: floating ? "hidden" : "visible",
+      }}
+    >
+      {/* Older scratchpads - above current (scrollable) */}
+      {floating && olderHistory.length > 0 && (
+        <div
+          style={{
+            flex: newerHistory.length > 0 ? "0 0 auto" : 1,
+            maxHeight: newerHistory.length > 0 ? 300 : "none",
+            overflowY: "auto",
+            background: C.paper,
+            borderBottom: `2px dashed ${C.pencilLight}`,
+            borderRadius: "3px 3px 0 0",
+          }}
+        >
+          <div
+            style={{
+              padding: "12px 24px 8px",
+              fontFamily: FONTS.caveat,
+              fontSize: 16,
+              fontWeight: 700,
+              color: C.pencil,
+              position: "sticky",
+              top: 0,
+              background: C.paper,
+              zIndex: 1,
+            }}
+          >
+            Previous Days
+          </div>
+          {olderHistory.map((item, index) => renderHistoryItem(item, index, index === olderHistory.length - 1))}
+        </div>
+      )}
+
     <div
       style={{
         position: "relative",
         padding: floating ? 24 : 16,
         background: C.yellowSoft,
         minHeight: floating ? 320 : 180,
-        borderRadius: 3,
-        width: floating ? 500 : "auto",
-        maxWidth: floating ? "90vw" : "none",
-        boxShadow: floating ? SHADOWS.modal : "none",
+        flex: floating ? "0 0 auto" : "none",
+        borderRadius: floating && (olderHistory.length > 0 || newerHistory.length > 0) ? 0 : 3,
+        borderTopLeftRadius: floating && olderHistory.length === 0 ? 3 : 0,
+        borderTopRightRadius: floating && olderHistory.length === 0 ? 3 : 0,
+        borderBottomLeftRadius: floating && newerHistory.length === 0 ? 3 : 0,
+        borderBottomRightRadius: floating && newerHistory.length === 0 ? 3 : 0,
       }}
     >
       <SketchBox stroke={C.ink} strokeWidth={1.5} rough={1} radius={3} />
@@ -283,15 +479,106 @@ export function ScratchPad({
             marginBottom: 4,
           }}
         >
-          <div
-            style={{
-              fontFamily: FONTS.caveat,
-              fontSize: floating ? 24 : 20,
-              fontWeight: 700,
-              color: C.ink,
-            }}
-          >
-            {floating ? "Scratchpad" : "Today's scratchpad"}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {showNavigation && (
+              <button
+                type="button"
+                onClick={onPrevDay}
+                title="Previous day"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: 0.6,
+                  transition: "opacity 0.15s",
+                  fontFamily: FONTS.architects,
+                  fontSize: floating ? 18 : 14,
+                  color: C.ink,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+              >
+                ←
+              </button>
+            )}
+            <div
+              style={{
+                fontFamily: FONTS.caveat,
+                fontSize: floating ? 24 : 20,
+                fontWeight: 700,
+                color: C.ink,
+              }}
+            >
+              {showNavigation && currentDate
+                ? `${formatDateLabel(currentDate)}'s scratchpad`
+                : floating
+                  ? "Scratchpad"
+                  : "Today's scratchpad"}
+            </div>
+            {showNavigation && (
+              <button
+                type="button"
+                onClick={onNextDay}
+                disabled={!canGoNext}
+                title={canGoNext ? "Next day" : "Already at today"}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: canGoNext ? "pointer" : "not-allowed",
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: canGoNext ? 0.6 : 0.2,
+                  transition: "opacity 0.15s",
+                  fontFamily: FONTS.architects,
+                  fontSize: floating ? 18 : 14,
+                  color: C.ink,
+                }}
+                onMouseEnter={(e) => {
+                  if (canGoNext) e.currentTarget.style.opacity = "1";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = canGoNext ? "0.6" : "0.2";
+                }}
+              >
+                →
+              </button>
+            )}
+            {/* Today button - shows when viewing a past day */}
+            {showNavigation && canGoNext && onGoToToday && (
+              <button
+                type="button"
+                onClick={onGoToToday}
+                title="Jump to today"
+                style={{
+                  background: C.tealSoft,
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: 0.85,
+                  transition: "opacity 0.15s",
+                  fontFamily: FONTS.kalam,
+                  fontSize: floating ? 12 : 10,
+                  color: C.teal,
+                  marginLeft: 4,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.85")}
+              >
+                Today
+              </button>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             {/* Strikethrough button — uses onMouseDown to preserve selection */}
@@ -465,6 +752,37 @@ export function ScratchPad({
           >
             S
           </button>
+        </div>
+      )}
+    </div>
+
+      {/* Newer scratchpads - below current (only when viewing past days) */}
+      {floating && newerHistory.length > 0 && (
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            background: C.paper,
+            borderTop: `2px dashed ${C.pencilLight}`,
+            borderRadius: "0 0 3px 3px",
+          }}
+        >
+          <div
+            style={{
+              padding: "12px 24px 8px",
+              fontFamily: FONTS.caveat,
+              fontSize: 16,
+              fontWeight: 700,
+              color: C.pencil,
+              position: "sticky",
+              top: 0,
+              background: C.paper,
+              zIndex: 1,
+            }}
+          >
+            Following Days
+          </div>
+          {newerHistory.map((item, index) => renderHistoryItem(item, index, index === newerHistory.length - 1))}
         </div>
       )}
     </div>

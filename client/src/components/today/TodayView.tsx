@@ -10,6 +10,8 @@ import {
 import { ScratchPad } from "../ui/ScratchPad";
 import type { Task } from "../../types";
 import { scratchpadApi } from "../../api/scratchpad";
+import type { ScratchpadResponse } from "../../api/scratchpad";
+import { isDueToday, getDueDateLabel, isDueTodayOrOverdue } from "../../utils/dateUtils";
 
 interface Props {
   tasks: Task[];
@@ -23,47 +25,128 @@ const REMINDERS = [
   "5:00 pm — push PR review",
 ];
 
+// Helper to format a date as YYYY-MM-DD in local timezone
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Helper to get today's date in YYYY-MM-DD format
+const getTodayString = (): string => {
+  return formatLocalDate(new Date());
+};
+
 export function TodayView({ tasks, onTaskClick, onOpenCalendar }: Props) {
   const [isFloating, setIsFloating] = useState(false);
   const [scratchContent, setScratchContent] = useState("");
+  const [currentDate, setCurrentDate] = useState(getTodayString());
+  const [scratchpadHistory, setScratchpadHistory] = useState<ScratchpadResponse[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const isToday = currentDate === getTodayString();
+
+  // Fetch recent scratchpads when entering floating mode
   useEffect(() => {
-    // Load today's scratchpad from backend
-    scratchpadApi
-      .get()
-      .then((response) => {
-        if (response && response.content) {
-          setScratchContent(response.content);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (!isFloating) {
+      setScratchpadHistory([]);
+      return;
+    }
+
+    const fetchHistory = async () => {
+      try {
+        const today = new Date();
+        const fromDate = new Date(today);
+        fromDate.setDate(fromDate.getDate() - 14); // Last 14 days
+
+        const history = await scratchpadApi.getByDateRange(
+          formatLocalDate(fromDate),
+          formatLocalDate(today)
+        );
+
+        // Filter out empty scratchpads and current date, sort by date descending
+        const filtered = history
+          .filter((s) => s.content && s.content.trim() && s.date !== currentDate)
+          .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+        setScratchpadHistory(filtered);
+      } catch {
+        setScratchpadHistory([]);
+      }
+    };
+
+    fetchHistory();
+  }, [isFloating, currentDate]);
+
+  // Load scratchpad for current date
+  useEffect(() => {
+    const loadScratchpad = async () => {
+      try {
+        const response = isToday
+          ? await scratchpadApi.get()
+          : await scratchpadApi.getByDate(currentDate);
+        setScratchContent(response?.content || "");
+      } catch {
+        setScratchContent("");
+      }
+    };
+    loadScratchpad();
+  }, [currentDate, isToday]);
 
   const handleScratchChange = useCallback((value: string) => {
     setScratchContent(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      // Save to backend
-      scratchpadApi.save(value).catch(() => {});
+      // Save to backend for the current date
+      const todayStr = getTodayString();
+      if (currentDate === todayStr) {
+        scratchpadApi.save(value).catch(() => {});
+      } else {
+        scratchpadApi.saveForDate(currentDate, value).catch(() => {});
+      }
     }, 5000);
+  }, [currentDate]);
+
+  // Navigation handlers
+  const handlePrevDay = useCallback(() => {
+    const date = new Date(currentDate + "T12:00:00"); // Use noon to avoid timezone edge cases
+    date.setDate(date.getDate() - 1);
+    setCurrentDate(formatLocalDate(date));
+  }, [currentDate]);
+
+  const handleNextDay = useCallback(() => {
+    const date = new Date(currentDate + "T12:00:00"); // Use noon to avoid timezone edge cases
+    date.setDate(date.getDate() + 1);
+    const nextDate = formatLocalDate(date);
+    const todayStr = getTodayString();
+    // Don't go past today
+    if (nextDate <= todayStr) {
+      setCurrentDate(nextDate);
+    }
+  }, [currentDate]);
+
+  const handleGoToToday = useCallback(() => {
+    setCurrentDate(getTodayString());
   }, []);
 
   const toggleFloat = useCallback(() => setIsFloating((f) => !f), []);
 
+  // Filter tasks using dynamic date calculation (exclude completed tasks)
   const todayTasks = tasks.filter(
-    (t) => t.dueDate === "Today" || t.status === "proc",
+    (t) => (isDueTodayOrOverdue(t.dueDate) || t.status === "proc") && t.status !== "done",
   );
   const upcoming = tasks.filter(
-    (t) => t.dueDate && t.dueDate !== "Today" && t.status !== "done",
+    (t) => t.dueDate && !isDueTodayOrOverdue(t.dueDate) && t.status !== "done",
   );
   const inProcess = tasks.filter((t) => t.status === "proc").length;
+  const dueTodayCount = tasks.filter((t) => isDueToday(t.dueDate)).length;
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return "good morning, SampathKumar P V";
-    if (h < 17) return "good afternoon, SampathKumar P V";
-    return "good evening, SampathKumar P V";
+    if (h < 12) return "good morning, Sampath";
+    if (h < 17) return "good afternoon, Sampath";
+    return "good evening, Sampath";
   };
 
   return (
@@ -100,6 +183,13 @@ export function TodayView({ tasks, onTaskClick, onOpenCalendar }: Props) {
             isFloating={isFloating}
             onToggleFloat={toggleFloat}
             onChange={handleScratchChange}
+            currentDate={currentDate}
+            onPrevDay={handlePrevDay}
+            onNextDay={handleNextDay}
+            onGoToToday={handleGoToToday}
+            canGoNext={!isToday}
+            history={scratchpadHistory}
+            onDateSelect={setCurrentDate}
           />
         </div>
       )}
@@ -145,8 +235,7 @@ export function TodayView({ tasks, onTaskClick, onOpenCalendar }: Props) {
               }}
             >
               {todayTasks.length} tasks today · {inProcess} in process
-              {tasks.filter((t) => t.dueDate === "Today").length > 0 &&
-                ` · ${tasks.filter((t) => t.dueDate === "Today").length} due today`}
+              {dueTodayCount > 0 && ` · ${dueTodayCount} due today`}
             </div>
           </div>
 
@@ -276,7 +365,7 @@ export function TodayView({ tasks, onTaskClick, onOpenCalendar }: Props) {
                         flexShrink: 0,
                       }}
                     >
-                      {u.dueDate}
+                      {getDueDateLabel(u.dueDate)}
                     </span>
                     <span
                       style={{
@@ -317,6 +406,11 @@ export function TodayView({ tasks, onTaskClick, onOpenCalendar }: Props) {
             isFloating={isFloating}
             onToggleFloat={toggleFloat}
             onChange={handleScratchChange}
+            currentDate={currentDate}
+            onPrevDay={handlePrevDay}
+            onNextDay={handleNextDay}
+            onGoToToday={handleGoToToday}
+            canGoNext={!isToday}
           />
 
           {/* reminders */}
@@ -415,12 +509,12 @@ export function TodayView({ tasks, onTaskClick, onOpenCalendar }: Props) {
                       style={{
                         fontFamily: FONTS.kalam,
                         fontSize: 10,
-                        color: C.pencil,
+                        color: isDueTodayOrOverdue(t.dueDate) ? C.coral : C.pencil,
                         width: 60,
                         flexShrink: 0,
                       }}
                     >
-                      {t.dueDate}
+                      {getDueDateLabel(t.dueDate)}
                     </span>
                     <span
                       style={{

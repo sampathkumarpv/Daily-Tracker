@@ -6,6 +6,7 @@ import { IconCalendar, IconClip, IconX, SketchCheck } from '../ui/Icons';
 import { LinkifiedText } from '../ui/LinkifiedText';
 import type { Task, Notecard } from '../../types';
 import type { Status } from '../../types';
+import { getDueDateLabel, isDueTodayOrOverdue } from '../../utils/dateUtils';
 
 interface Props {
   task: Task;
@@ -98,25 +99,16 @@ export function TaskModal({
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (val) {
-      const date = new Date(val);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      let displayDate: string;
-      if (date.toDateString() === today.toDateString()) {
-        displayDate = 'Today';
-      } else if (date.toDateString() === tomorrow.toDateString()) {
-        displayDate = 'Tomorrow';
-      } else {
-        displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      }
-      onUpdateTask?.({ dueDate: displayDate });
+      // Store in YYYY-MM-DD format (the native date input already provides this)
+      onUpdateTask?.({ dueDate: val });
     } else {
       onUpdateTask?.({ dueDate: undefined });
     }
   };
+
+  // Calculate display label dynamically
+  const dueDateLabel = getDueDateLabel(task.dueDate);
+  const isDueUrgent = isDueTodayOrOverdue(task.dueDate);
 
   return (
     <div
@@ -222,9 +214,9 @@ export function TaskModal({
               onClick={() => dateInputRef.current?.showPicker()}
               title="Click to change date"
             >
-              <IconCalendar size={11} color={task.dueDate === 'Today' ? C.coral : C.pencil} />
-              <span style={{ color: task.dueDate === 'Today' ? C.coral : C.inkSoft }}>
-                {task.dueDate ? `due ${task.dueDate}` : 'set due date'}
+              <IconCalendar size={11} color={isDueUrgent ? C.coral : C.pencil} />
+              <span style={{ color: isDueUrgent ? C.coral : C.inkSoft }}>
+                {dueDateLabel ? `due ${dueDateLabel}` : 'set due date'}
               </span>
               <input
                 ref={dateInputRef}

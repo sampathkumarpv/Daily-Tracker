@@ -5,6 +5,7 @@ import { IconCalendar, IconClip } from '../ui/Icons';
 import type { Task } from '../../types';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { getDueDateLabel, isDueTodayOrOverdue } from '../../utils/dateUtils';
 
 interface Props {
   task: Task;
@@ -26,7 +27,8 @@ export function TaskCard({ task, onClick, isDragging, isFocused, onClearFocus }:
   } = useSortable({ id: task.id });
 
   const dragging = isDragging || isSortableDragging;
-  const isToday = task.dueDate === 'Today';
+  const dueDateLabel = getDueDateLabel(task.dueDate);
+  const isUrgent = isDueTodayOrOverdue(task.dueDate);
 
   // Scroll into view when focused
   useEffect(() => {
@@ -162,7 +164,7 @@ export function TaskCard({ task, onClick, isDragging, isFocused, onClearFocus }:
 
           {/* meta row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {task.dueDate && (
+            {dueDateLabel && (
               <span
                 style={{
                   display: 'inline-flex',
@@ -170,11 +172,11 @@ export function TaskCard({ task, onClick, isDragging, isFocused, onClearFocus }:
                   gap: 3,
                   fontFamily: FONTS.kalam,
                   fontSize: 10,
-                  color: isToday ? C.coral : C.pencil,
+                  color: isUrgent ? C.coral : C.pencil,
                 }}
               >
-                <IconCalendar size={10} color={isToday ? C.coral : C.pencil} />
-                {task.dueDate}
+                <IconCalendar size={10} color={isUrgent ? C.coral : C.pencil} />
+                {dueDateLabel}
               </span>
             )}
             {task.notecardIds.length > 0 && (

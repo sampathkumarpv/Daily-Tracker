@@ -7,6 +7,11 @@ import TaskItem from '@tiptap/extension-task-item';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import { Highlight } from '@tiptap/extension-highlight';
@@ -197,6 +202,661 @@ function ColorPickerDropdown({ colors, currentColor, onSelect, icon, title }: Co
   );
 }
 
+interface TableDropdownProps {
+  editor: ReturnType<typeof useEditor>;
+}
+
+function TableDropdown({ editor }: TableDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const [showCustomSize, setShowCustomSize] = useState(false);
+  const [customRows, setCustomRows] = useState(3);
+  const [customCols, setCustomCols] = useState(3);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setShowCustomSize(false);
+      }
+    };
+    if (open) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  if (!editor) return null;
+
+  const isInTable = editor.isActive('table');
+
+  const handleInsertCustomTable = () => {
+    const rows = Math.max(1, Math.min(20, customRows));
+    const cols = Math.max(1, Math.min(10, customCols));
+    editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+    setOpen(false);
+    setShowCustomSize(false);
+  };
+
+  const tableActions = [
+    {
+      label: 'Insert 3×3 table',
+      icon: '⊞',
+      action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+      show: !isInTable,
+    },
+    {
+      label: 'Insert 2×2 table',
+      icon: '⊟',
+      action: () => editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run(),
+      show: !isInTable,
+    },
+    {
+      label: 'Custom size...',
+      icon: '⋯',
+      action: () => setShowCustomSize(true),
+      show: !isInTable,
+      noClose: true,
+    },
+    { label: 'divider', icon: '', action: () => {}, show: !isInTable && isInTable === false },
+    {
+      label: 'Add column before',
+      icon: '←+',
+      action: () => editor.chain().focus().addColumnBefore().run(),
+      show: isInTable,
+    },
+    {
+      label: 'Add column after',
+      icon: '+→',
+      action: () => editor.chain().focus().addColumnAfter().run(),
+      show: isInTable,
+    },
+    {
+      label: 'Delete column',
+      icon: '×|',
+      action: () => editor.chain().focus().deleteColumn().run(),
+      show: isInTable,
+    },
+    { label: 'divider', icon: '', action: () => {}, show: isInTable },
+    {
+      label: 'Add row before',
+      icon: '↑+',
+      action: () => editor.chain().focus().addRowBefore().run(),
+      show: isInTable,
+    },
+    {
+      label: 'Add row after',
+      icon: '+↓',
+      action: () => editor.chain().focus().addRowAfter().run(),
+      show: isInTable,
+    },
+    {
+      label: 'Delete row',
+      icon: '×—',
+      action: () => editor.chain().focus().deleteRow().run(),
+      show: isInTable,
+    },
+    { label: 'divider', icon: '', action: () => {}, show: isInTable },
+    {
+      label: 'Toggle header row',
+      icon: '▤',
+      action: () => editor.chain().focus().toggleHeaderRow().run(),
+      show: isInTable,
+    },
+    {
+      label: 'Toggle header column',
+      icon: '▥',
+      action: () => editor.chain().focus().toggleHeaderColumn().run(),
+      show: isInTable,
+    },
+    {
+      label: 'Merge cells',
+      icon: '⊡',
+      action: () => editor.chain().focus().mergeCells().run(),
+      show: isInTable,
+    },
+    {
+      label: 'Split cell',
+      icon: '⊞',
+      action: () => editor.chain().focus().splitCell().run(),
+      show: isInTable,
+    },
+    { label: 'divider', icon: '', action: () => {}, show: isInTable },
+    {
+      label: 'Delete table',
+      icon: '🗑',
+      action: () => editor.chain().focus().deleteTable().run(),
+      show: isInTable,
+      danger: true,
+    },
+  ];
+
+  const visibleActions = tableActions.filter(a => a.show);
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        title="Table"
+        style={{
+          padding: '4px 8px',
+          fontFamily: FONTS.ui,
+          fontSize: 12,
+          color: isInTable ? C.ink : C.inkSoft,
+          border: isInTable ? `1.5px solid ${C.ink}` : '1.5px solid transparent',
+          background: isInTable ? C.yellowSoft : 'transparent',
+          borderRadius: 4,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span style={{ fontWeight: 600 }}>⊞</span>
+        table
+        <span style={{ fontSize: 8 }}>▼</span>
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            marginTop: 4,
+            background: C.paper,
+            border: `1.5px solid ${C.pencilLight}`,
+            borderRadius: 6,
+            padding: 4,
+            minWidth: 160,
+            zIndex: 100,
+            boxShadow: SHADOWS.dropdown,
+          }}
+        >
+          {showCustomSize ? (
+            <div style={{ padding: '8px 4px' }}>
+              <div style={{ fontFamily: FONTS.ui, fontSize: 11, color: C.ink, marginBottom: 8, fontWeight: 600 }}>
+                Custom Table Size
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontFamily: FONTS.ui, fontSize: 10, color: C.inkSoft, display: 'block', marginBottom: 2 }}>
+                    Rows
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={customRows}
+                    onChange={(e) => setCustomRows(parseInt(e.target.value) || 1)}
+                    style={{
+                      width: '100%',
+                      padding: '4px 6px',
+                      border: `1.5px solid ${C.pencilLight}`,
+                      borderRadius: 4,
+                      fontFamily: FONTS.ui,
+                      fontSize: 12,
+                      color: C.ink,
+                      background: C.paper,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = C.teal}
+                    onBlur={(e) => e.currentTarget.style.borderColor = C.pencilLight}
+                  />
+                </div>
+                <span style={{ fontFamily: FONTS.ui, fontSize: 12, color: C.pencil, marginTop: 14 }}>×</span>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontFamily: FONTS.ui, fontSize: 10, color: C.inkSoft, display: 'block', marginBottom: 2 }}>
+                    Cols
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={customCols}
+                    onChange={(e) => setCustomCols(parseInt(e.target.value) || 1)}
+                    style={{
+                      width: '100%',
+                      padding: '4px 6px',
+                      border: `1.5px solid ${C.pencilLight}`,
+                      borderRadius: 4,
+                      fontFamily: FONTS.ui,
+                      fontSize: 12,
+                      color: C.ink,
+                      background: C.paper,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = C.teal}
+                    onBlur={(e) => e.currentTarget.style.borderColor = C.pencilLight}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => setShowCustomSize(false)}
+                  style={{
+                    flex: 1,
+                    padding: '5px 8px',
+                    border: `1.5px solid ${C.pencilLight}`,
+                    borderRadius: 4,
+                    background: 'transparent',
+                    fontFamily: FONTS.ui,
+                    fontSize: 10,
+                    color: C.inkSoft,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleInsertCustomTable}
+                  style={{
+                    flex: 1,
+                    padding: '5px 8px',
+                    border: 'none',
+                    borderRadius: 4,
+                    background: C.teal,
+                    fontFamily: FONTS.ui,
+                    fontSize: 10,
+                    color: C.paper,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  Insert
+                </button>
+              </div>
+            </div>
+          ) : (
+            visibleActions.map((action, i) =>
+              action.label === 'divider' ? (
+                <div
+                  key={`divider-${i}`}
+                  style={{
+                    height: 1,
+                    background: C.pencilLight,
+                    margin: '4px 0',
+                  }}
+                />
+              ) : (
+                <button
+                  key={action.label}
+                  onClick={() => {
+                    action.action();
+                    if (!(action as { noClose?: boolean }).noClose) {
+                      setOpen(false);
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    width: '100%',
+                    padding: '6px 8px',
+                    border: 'none',
+                    background: 'transparent',
+                    borderRadius: 4,
+                    fontFamily: FONTS.ui,
+                    fontSize: 11,
+                    color: (action as { danger?: boolean }).danger ? C.coral : C.ink,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = C.paperDark;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <span style={{ width: 16, textAlign: 'center', fontSize: 12 }}>
+                    {action.icon}
+                  </span>
+                  {action.label}
+                </button>
+              )
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface DatePickerModalProps {
+  onClose: () => void;
+  onInsert: (dateStr: string) => void;
+}
+
+function DatePickerModal({ onClose, onInsert }: DatePickerModalProps) {
+  const today = new Date().toISOString().split('T')[0];
+  const [date, setDate] = useState(today);
+
+  const handleInsert = () => {
+    if (!date) return;
+    const formatted = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    onInsert(formatted);
+    onClose();
+  };
+
+  const handleToday = () => {
+    const formatted = new Date().toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    onInsert(formatted);
+    onClose();
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: OVERLAYS.modal,
+        backdropFilter: 'blur(3px)',
+        zIndex: 300,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          background: C.paper,
+          padding: 24,
+          width: '100%',
+          maxWidth: 320,
+          borderRadius: 8,
+          boxShadow: SHADOWS.modal,
+        }}
+      >
+        <SketchBox stroke={C.ink} strokeWidth={2} rough={1.2} radius={6} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontFamily: FONTS.head, fontSize: 20, fontWeight: 700, color: C.ink, margin: 0 }}>
+              Insert Date
+            </h3>
+            <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4 }}>
+              <IconX size={16} color={C.pencil} />
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontFamily: FONTS.ui, fontSize: 11, color: C.inkSoft, display: 'block', marginBottom: 4 }}>
+              Select Date
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                border: `1.5px solid ${C.pencilLight}`,
+                borderRadius: 4,
+                fontFamily: FONTS.ui,
+                fontSize: 13,
+                color: C.ink,
+                background: C.paper,
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleToday}
+              style={{
+                padding: '8px 14px',
+                border: `1.5px solid ${C.teal}`,
+                borderRadius: 4,
+                background: 'transparent',
+                fontFamily: FONTS.ui,
+                fontSize: 12,
+                color: C.teal,
+                cursor: 'pointer',
+                marginRight: 'auto',
+              }}
+            >
+              Today
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '8px 14px',
+                border: `1.5px solid ${C.pencilLight}`,
+                borderRadius: 4,
+                background: 'transparent',
+                fontFamily: FONTS.ui,
+                fontSize: 12,
+                color: C.inkSoft,
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleInsert}
+              disabled={!date}
+              style={{
+                padding: '8px 14px',
+                border: 'none',
+                borderRadius: 4,
+                background: date ? C.teal : C.pencilLight,
+                fontFamily: FONTS.ui,
+                fontSize: 12,
+                color: C.paper,
+                cursor: date ? 'pointer' : 'not-allowed',
+                fontWeight: 600,
+              }}
+            >
+              Insert
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface LinkModalProps {
+  onClose: () => void;
+  onSave: (url: string, text: string) => void;
+  onRemove?: () => void;
+  initialUrl?: string;
+  initialText?: string;
+  hasSelection?: boolean;
+}
+
+function LinkModal({ onClose, onSave, onRemove, initialUrl = '', initialText = '', hasSelection = false }: LinkModalProps) {
+  const [url, setUrl] = useState(initialUrl);
+  const [text, setText] = useState(initialText);
+  const isEditing = !!initialUrl;
+
+  const handleSave = () => {
+    if (!url.trim()) return;
+    onSave(url.trim(), text.trim());
+    onClose();
+  };
+
+  const handleRemove = () => {
+    onRemove?.();
+    onClose();
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: OVERLAYS.modal,
+        backdropFilter: 'blur(3px)',
+        zIndex: 300,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          background: C.paper,
+          padding: 24,
+          width: '100%',
+          maxWidth: 400,
+          borderRadius: 8,
+          boxShadow: SHADOWS.modal,
+        }}
+      >
+        <SketchBox stroke={C.ink} strokeWidth={2} rough={1.2} radius={6} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontFamily: FONTS.head, fontSize: 20, fontWeight: 700, color: C.ink, margin: 0 }}>
+              {isEditing ? 'Edit Link' : 'Insert Link'}
+            </h3>
+            <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4 }}>
+              <IconX size={16} color={C.pencil} />
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontFamily: FONTS.ui, fontSize: 11, color: C.inkSoft, display: 'block', marginBottom: 4 }}>
+              URL
+            </label>
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com"
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                border: `1.5px solid ${C.pencilLight}`,
+                borderRadius: 4,
+                fontFamily: FONTS.body,
+                fontSize: 13,
+                color: C.ink,
+                background: C.paper,
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && url.trim()) {
+                  handleSave();
+                }
+              }}
+            />
+          </div>
+
+          {!hasSelection && !isEditing && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: FONTS.ui, fontSize: 11, color: C.inkSoft, display: 'block', marginBottom: 4 }}>
+                Display Text <span style={{ color: C.pencil }}>(optional)</span>
+              </label>
+              <input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Link text (defaults to URL)"
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  border: `1.5px solid ${C.pencilLight}`,
+                  borderRadius: 4,
+                  fontFamily: FONTS.body,
+                  fontSize: 13,
+                  color: C.ink,
+                  background: C.paper,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && url.trim()) {
+                    handleSave();
+                  }
+                }}
+              />
+            </div>
+          )}
+
+          {hasSelection && !isEditing && (
+            <p style={{ fontFamily: FONTS.kalam, fontSize: 11, color: C.pencil, marginBottom: 16 }}>
+              The selected text will become a link
+            </p>
+          )}
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            {isEditing && onRemove && (
+              <button
+                onClick={handleRemove}
+                style={{
+                  padding: '8px 14px',
+                  border: `1.5px solid ${C.coral}`,
+                  borderRadius: 4,
+                  background: 'transparent',
+                  fontFamily: FONTS.ui,
+                  fontSize: 12,
+                  color: C.coral,
+                  cursor: 'pointer',
+                  marginRight: 'auto',
+                }}
+              >
+                Remove Link
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                padding: '8px 14px',
+                border: `1.5px solid ${C.pencilLight}`,
+                borderRadius: 4,
+                background: 'transparent',
+                fontFamily: FONTS.ui,
+                fontSize: 12,
+                color: C.inkSoft,
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!url.trim()}
+              style={{
+                padding: '8px 14px',
+                border: 'none',
+                borderRadius: 4,
+                background: url.trim() ? C.teal : C.pencilLight,
+                fontFamily: FONTS.ui,
+                fontSize: 12,
+                color: C.paper,
+                cursor: url.trim() ? 'pointer' : 'not-allowed',
+                fontWeight: 600,
+              }}
+            >
+              {isEditing ? 'Update Link' : 'Add Link'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface ReminderModalProps {
   onClose: () => void;
   onSave: (dueAt: string, label: string) => void;
@@ -379,6 +1039,8 @@ export function NotecardEditor({
 }: Props) {
   const [title, setTitle] = useState(notecard.title);
   const [showReminderModal, setShowReminderModal] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -434,6 +1096,26 @@ export function NotecardEditor({
         inline: true,
         allowBase64: true,
       }),
+      Link.extend({
+        inclusive: false, // Don't extend link when typing at the end
+      }).configure({
+        openOnClick: true,
+        autolink: true,
+        defaultProtocol: 'https',
+        HTMLAttributes: {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+      }),
+      Table.configure({
+        resizable: true,
+        HTMLAttributes: {
+          class: 'notecard-table',
+        },
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     content: (() => {
       try {
@@ -502,15 +1184,9 @@ export function NotecardEditor({
     onUpdate({ title: newTitle });
   }, [onUpdate]);
 
-  // Insert current date as inline text
-  const insertDate = useCallback(() => {
+  // Insert date as inline text
+  const insertDate = useCallback((dateStr: string) => {
     if (!editor) return;
-    const dateStr = new Date().toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
     editor.chain().focus().insertContent(`📅 ${dateStr} `).run();
   }, [editor]);
 
@@ -563,6 +1239,44 @@ export function NotecardEditor({
       }
     };
     reader.readAsDataURL(file);
+  }, [editor]);
+
+  // Handle link insertion
+  const handleAddLink = useCallback((url: string, text: string) => {
+    if (!editor) return;
+
+    // Ensure URL has protocol
+    let finalUrl = url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      finalUrl = 'https://' + url;
+    }
+
+    const hasSelection = !editor.state.selection.empty;
+
+    if (hasSelection) {
+      // Apply link to selected text
+      editor.chain().focus().setLink({ href: finalUrl }).run();
+    } else if (text) {
+      // Insert new text with link
+      editor.chain().focus().insertContent({
+        type: 'text',
+        text: text,
+        marks: [{ type: 'link', attrs: { href: finalUrl } }],
+      }).run();
+    } else {
+      // Insert URL as link text
+      editor.chain().focus().insertContent({
+        type: 'text',
+        text: finalUrl,
+        marks: [{ type: 'link', attrs: { href: finalUrl } }],
+      }).run();
+    }
+  }, [editor]);
+
+  // Handle link removal
+  const handleRemoveLink = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().unsetLink().run();
   }, [editor]);
 
   // Handle delete
@@ -661,7 +1375,7 @@ export function NotecardEditor({
       </div>
 
       {/* right: editor */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 0 }}>
         {/* toolbar */}
         <div
           style={{
@@ -817,10 +1531,11 @@ export function NotecardEditor({
           >
             {'{ } code'}
           </ToolbarButton>
+          <TableDropdown editor={editor} />
 
           <div style={{ width: 1, height: 20, background: C.pencilLight, margin: '0 6px' }} />
 
-          <ToolbarButton onClick={insertDate} title="Insert Date">
+          <ToolbarButton onClick={() => setShowDateModal(true)} title="Insert Date">
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <IconCalendar size={12} color={C.inkSoft} />
               date
@@ -837,6 +1552,13 @@ export function NotecardEditor({
               <IconClip size={12} color={C.inkSoft} />
               file
             </span>
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => setShowLinkModal(true)}
+            isActive={editor.isActive('link')}
+            title="Insert Link"
+          >
+            🔗 link
           </ToolbarButton>
           <ToolbarButton onClick={() => imageInputRef.current?.click()} title="Insert Image">
             🖼 img
@@ -886,16 +1608,19 @@ export function NotecardEditor({
         <div
           style={{
             flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
             gap: 14,
+            paddingBottom: 24,
           }}
         >
           {/* TipTap Editor */}
           <div
             style={{
               minHeight: 200,
+              flexShrink: 0,
             }}
           >
             <EditorContent editor={editor} />
@@ -1084,11 +1809,30 @@ export function NotecardEditor({
         </div>
       </div>
 
+      {/* Date Picker Modal */}
+      {showDateModal && (
+        <DatePickerModal
+          onClose={() => setShowDateModal(false)}
+          onInsert={insertDate}
+        />
+      )}
+
       {/* Reminder Modal */}
       {showReminderModal && (
         <ReminderModal
           onClose={() => setShowReminderModal(false)}
           onSave={handleAddReminder}
+        />
+      )}
+
+      {/* Link Modal */}
+      {showLinkModal && (
+        <LinkModal
+          onClose={() => setShowLinkModal(false)}
+          onSave={handleAddLink}
+          onRemove={handleRemoveLink}
+          initialUrl={editor?.getAttributes('link').href || ''}
+          hasSelection={!editor?.state.selection.empty}
         />
       )}
 
@@ -1213,6 +1957,84 @@ export function NotecardEditor({
         }
         .ProseMirror span[style*="color"] {
           font-weight: inherit;
+        }
+        .ProseMirror a {
+          color: var(--color-teal);
+          text-decoration: underline;
+          text-decoration-style: wavy;
+          text-decoration-color: var(--color-teal);
+          text-underline-offset: 2px;
+          cursor: pointer;
+          transition: color 0.15s ease;
+        }
+        .ProseMirror a:hover {
+          color: var(--color-coral);
+          text-decoration-color: var(--color-coral);
+        }
+        /* Table styles */
+        .ProseMirror table {
+          border-collapse: collapse;
+          margin: 1em 0;
+          overflow: hidden;
+          table-layout: fixed;
+          width: 100%;
+          border: 1.5px solid var(--color-pencilLight);
+          border-radius: 4px;
+        }
+        .ProseMirror td,
+        .ProseMirror th {
+          border: 1px solid var(--color-pencilLight);
+          box-sizing: border-box;
+          min-width: 1em;
+          padding: 8px 10px;
+          position: relative;
+          vertical-align: top;
+        }
+        .ProseMirror th {
+          background-color: var(--color-paperDark);
+          font-weight: 600;
+          text-align: left;
+          font-family: var(--font-ui);
+          font-size: calc(12px * var(--font-scale, 1));
+          color: var(--color-ink);
+        }
+        .ProseMirror td {
+          font-family: var(--font-body);
+          font-size: calc(13px * var(--font-scale, 1));
+        }
+        .ProseMirror .selectedCell:after {
+          background: var(--color-yellowSoft);
+          content: "";
+          left: 0;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          pointer-events: none;
+          position: absolute;
+          z-index: 2;
+          opacity: 0.5;
+        }
+        .ProseMirror .column-resize-handle {
+          background-color: var(--color-teal);
+          bottom: -2px;
+          pointer-events: none;
+          position: absolute;
+          right: -2px;
+          top: 0;
+          width: 4px;
+        }
+        .ProseMirror.resize-cursor {
+          cursor: col-resize;
+        }
+        .ProseMirror table p {
+          margin: 0;
+        }
+        /* Table row hover effect */
+        .ProseMirror tr:hover td {
+          background-color: var(--color-paperDark);
+        }
+        .ProseMirror tr:hover th {
+          background-color: var(--color-pencilLight);
         }
       `}</style>
     </div>

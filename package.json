@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "bash scripts/start-db.sh && concurrently --names \"server,client\" --prefix-colors \"cyan,magenta\" \"npm run start:server\" \"npm run start:client\"",
-    "start:server": "cd server && gradle bootRun",
+    "start:server": "cd server && ./gradlew bootRun",
     "start:client": "cd client && npm run dev",
     "start:db": "bash scripts/start-db.sh",
     "install:client": "cd client && npm install"

@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { Task, Notecard, Notebook, Reminder, View } from '../types';
-import type { Status, NotebookColor } from '../types';
+import type { Task, Notecard, Notebook, Reminder, View, Topic, Project } from '../types';
+import type { Status, NotebookColor, ProjectStatus } from '../types';
 import { tasksApi } from '../api/tasks';
 import { notebooksApi } from '../api/notebooks';
 import { notecardsApi } from '../api/notecards';
 import { remindersApi, type CreateReminderRequest } from '../api/reminders';
+import { topicsApi } from '../api/topics';
+import { projectsApi } from '../api/projects';
 import { activityLogApi } from '../api/activityLog';
 import { reminderService } from '../services/reminderService';
 
@@ -15,7 +17,17 @@ export interface Store {
   notecards: Notecard[];
   notebooks: Notebook[];
   reminders: Reminder[];
+  topics: Topic[];
+  projects: Project[];
   activeView: View;
+
+  // Topic/Project actions
+  addTopic: (name: string, color?: string) => Promise<Topic>;
+  updateTopic: (id: string, data: { name?: string; color?: string; description?: string }) => Promise<void>;
+  deleteTopic: (id: string) => Promise<void>;
+  addProject: (name: string, topicId: string) => Promise<Project>;
+  updateProject: (id: string, data: { name?: string; status?: ProjectStatus; description?: string }) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   selectedTaskId: string | null;
   selectedNotecardId: string | null;
   selectedNotebookId: string | null;
@@ -75,6 +87,8 @@ export function useStore(): Store {
   const [notecards, setNotecards] = useState<Notecard[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [activeView, setActiveViewState] = useState<View>(
     () => (localStorage.getItem('activeView') as View) ?? 'today'
   );
@@ -119,10 +133,14 @@ export function useStore(): Store {
       notebooksApi.getAll(),
       notecardsApi.getAll(),
       remindersApi.getAll(),
+      topicsApi.getAll(),
+      projectsApi.getAll(),
     ])
-      .then(([t, nb, nc, rem]) => {
+      .then(([t, nb, nc, rem, top, proj]) => {
         if (cancelled) return;
         setTasks(t);
+        setTopics(top);
+        setProjects(proj);
         const processedNotebooks = nb.map((n, i) => ({
           ...n,
           createdAt: n.createdAt || new Date().toISOString(),
@@ -566,8 +584,47 @@ export function useStore(): Store {
     setReminderCallback(() => callback);
   }, []);
 
+  // === Topic/Project Actions ===
+  const addTopic = useCallback(async (name: string, color?: string): Promise<Topic> => {
+    const created = await topicsApi.create({ name, color });
+    setTopics(ts => [...ts, created]);
+    return created;
+  }, []);
+
+  const updateTopic = useCallback(async (id: string, data: { name?: string; color?: string; description?: string }): Promise<void> => {
+    const updated = await topicsApi.update(id, data);
+    setTopics(ts => ts.map(t => t.id === id ? updated : t));
+  }, []);
+
+  const deleteTopic = useCallback(async (id: string): Promise<void> => {
+    await topicsApi.delete(id);
+    setTopics(ts => ts.filter(t => t.id !== id));
+    // Also remove projects under this topic
+    setProjects(ps => ps.filter(p => p.topicId !== id));
+    // Unassign tasks from this topic
+    setTasks(ts => ts.map(t => t.topicId === id ? { ...t, topicId: undefined, projectId: undefined } : t));
+  }, []);
+
+  const addProject = useCallback(async (name: string, topicId: string): Promise<Project> => {
+    const created = await projectsApi.create({ name, topicId });
+    setProjects(ps => [...ps, created]);
+    return created;
+  }, []);
+
+  const updateProject = useCallback(async (id: string, data: { name?: string; status?: ProjectStatus; description?: string }): Promise<void> => {
+    const updated = await projectsApi.update(id, data);
+    setProjects(ps => ps.map(p => p.id === id ? updated : p));
+  }, []);
+
+  const deleteProject = useCallback(async (id: string): Promise<void> => {
+    await projectsApi.delete(id);
+    setProjects(ps => ps.filter(p => p.id !== id));
+    // Unassign tasks from this project
+    setTasks(ts => ts.map(t => t.projectId === id ? { ...t, projectId: undefined } : t));
+  }, []);
+
   return {
-    tasks, notecards, notebooks, reminders,
+    tasks, notecards, notebooks, reminders, topics, projects,
     activeView, selectedTaskId, selectedNotecardId, selectedNotebookId,
     taskModalOpen, cardPickerOpen, loading, loadError, retryLoad, pendingRemindersCount,
     setView,
@@ -578,5 +635,6 @@ export function useStore(): Store {
     reorderNotecards, moveNotecardToNotebook,
     openNotebook, addNotebook, updateNotebook, deleteNotebook, reorderNotebooks,
     addReminder, deleteReminder, onReminderFire,
+    addTopic, updateTopic, deleteTopic, addProject, updateProject, deleteProject,
   };
 }

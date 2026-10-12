@@ -77,7 +77,31 @@ export interface Task {
   createdAt: string;
   updatedAt?: string;      // ISO datetime - last modification
   isSubtaskOf?: string;    // parent task id
-  area?: string;
+  topicId?: string;        // Topic this task belongs to
+  projectId?: string;      // Project this task belongs to (optional)
+}
+
+// Topic - Module/domain you own (ongoing, never "done")
+export interface Topic {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
+  position: number;
+  createdAt: string;
+}
+
+// Project - Feature/initiative within a topic (has lifecycle)
+export type ProjectStatus = 'active' | 'completed' | 'archived';
+
+export interface Project {
+  id: string;
+  name: string;
+  topicId: string;
+  status: ProjectStatus;
+  description?: string;
+  position: number;
+  createdAt: string;
 }
 
 export interface Notebook {
@@ -97,7 +121,7 @@ export interface ScratchpadEntry {
   updatedAt: number;       // Time in milliseconds
 }
 
-export type View = 'today' | 'board' | 'all' | 'done' | 'notebooks' | 'notebook-detail' | 'notecard-editor' | 'calendar';
+export type View = 'today' | 'board' | 'all' | 'done' | 'notebooks' | 'notebook-detail' | 'notecard-editor' | 'calendar' | 'topics' | 'topic-detail';
 
 // Calendar Activity Event types
 export type ActivityEventType =

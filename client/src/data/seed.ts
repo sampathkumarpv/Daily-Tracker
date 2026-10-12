@@ -193,7 +193,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: ['nc3', 'nc5'],
     createdAt: 'Apr 18',
-    area: 'Frontend',
   },
   {
     id: 't2',
@@ -205,7 +204,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: ['nc6'],
     createdAt: 'Apr 19',
-    area: 'Backend',
   },
   {
     id: 't3',
@@ -216,7 +214,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: [],
     createdAt: 'Apr 17',
-    area: 'Design',
   },
   {
     id: 't4',
@@ -227,7 +224,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: ['nc7'],
     createdAt: 'Apr 20',
-    area: 'Design',
   },
   {
     id: 't5',
@@ -244,7 +240,6 @@ export const TASKS: Task[] = [
     ],
     notecardIds: ['nc1', 'nc2'],
     createdAt: 'Apr 18',
-    area: 'Frontend',
   },
   {
     id: 't6',
@@ -256,7 +251,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: ['nc4'],
     createdAt: 'Apr 20',
-    area: 'Backend',
   },
   {
     id: 't7',
@@ -268,7 +262,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: ['nc3', 'nc4'],
     createdAt: 'Apr 15',
-    area: 'Backend',
   },
   {
     id: 't8',
@@ -279,7 +272,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: ['nc8'],
     createdAt: 'Apr 14',
-    area: 'Frontend',
   },
   {
     id: 't9',
@@ -292,7 +284,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: ['nc6', 'nc1'],
     createdAt: 'Apr 21',
-    area: 'Backend',
   },
   {
     id: 't10',
@@ -303,7 +294,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: [],
     createdAt: 'Apr 10',
-    area: 'Backend',
   },
   {
     id: 't11',
@@ -314,7 +304,6 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: ['nc5'],
     createdAt: 'Apr 12',
-    area: 'Design',
   },
   {
     id: 't12',
@@ -325,6 +314,5 @@ export const TASKS: Task[] = [
     subtasks: [],
     notecardIds: [],
     createdAt: 'Apr 8',
-    area: 'Frontend',
   },
 ];

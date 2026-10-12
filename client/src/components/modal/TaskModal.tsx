@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { C, FONTS, STATUS_META, SHADOWS, OVERLAYS } from '../../theme';
 import type { StatusKey } from '../../theme';
 import { SketchBox, SketchPill, SketchButton } from '../ui/SketchBox';
-import { IconCalendar, IconClip, IconX, SketchCheck } from '../ui/Icons';
+import { IconCalendar, IconClip, IconX, IconTrash, SketchCheck } from '../ui/Icons';
 import { LinkifiedText } from '../ui/LinkifiedText';
 import type { Task, Notecard } from '../../types';
 import type { Status } from '../../types';
@@ -19,6 +19,7 @@ interface Props {
   onMoveTask: (status: Status) => void;
   onAddSubtask: (text: string) => void;
   onUpdateTask?: (patch: Partial<Task>) => void;
+  onDeleteTask?: () => void;
 }
 
 export function TaskModal({
@@ -32,6 +33,7 @@ export function TaskModal({
   onMoveTask,
   onAddSubtask,
   onUpdateTask,
+  onDeleteTask,
 }: Props) {
   const [newSubtask, setNewSubtask] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
@@ -154,6 +156,19 @@ export function TaskModal({
               {task.tag} · created {task.createdAt}
             </span>
             <div style={{ flex: 1 }} />
+            {onDeleteTask && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete this task?')) {
+                    onDeleteTask();
+                  }
+                }}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4 }}
+                title="Delete task"
+              >
+                <IconTrash size={16} color={C.coral} />
+              </button>
+            )}
             <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4 }}>
               <IconX size={18} color={C.pencil} />
             </button>

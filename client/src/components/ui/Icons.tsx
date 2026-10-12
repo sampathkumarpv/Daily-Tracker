@@ -157,6 +157,45 @@ export const IconFileText = ({ size = 14, color }: { size?: number; color?: stri
   </svg>
 );
 
+export const IconFilter = ({ size = 14, color }: { size?: number; color?: string }) => (
+  <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
+    <path d="M2 3 H14 L9.5 8.5 V12.5 L6.5 14 V8.5 Z" />
+  </svg>
+);
+
+export const IconFolder = ({ size = 14, color }: { size?: number; color?: string }) => (
+  <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
+    <path d="M2 4 H6 L7.5 2.5 H14 V13 H2 Z M2 5.5 H14" />
+  </svg>
+);
+
+export const IconChevronDown = ({ size = 14, color }: { size?: number; color?: string }) => (
+  <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
+    <path d="M3 6 L8 11 L13 6" />
+  </svg>
+);
+
+export const IconLayers = ({ size = 14, color }: { size?: number; color?: string }) => (
+  <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
+    <path d="M8 2 L14 5 L8 8 L2 5 Z" />
+    <path d="M2 8 L8 11 L14 8" />
+    <path d="M2 11 L8 14 L14 11" />
+  </svg>
+);
+
+export const IconSettings = ({ size = 14, color }: { size?: number; color?: string }) => (
+  <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
+    <circle cx="8" cy="8" r="2.5" />
+    <path d="M8 1.5 V3.5 M8 12.5 V14.5 M1.5 8 H3.5 M12.5 8 H14.5 M3 3 L4.5 4.5 M11.5 11.5 L13 13 M3 13 L4.5 11.5 M11.5 4.5 L13 3" />
+  </svg>
+);
+
+export const IconEdit = ({ size = 14, color }: { size?: number; color?: string }) => (
+  <svg {...svgProps(color ?? C.pencil, size)} viewBox="0 0 16 16">
+    <path d="M11 2 L14 5 L5 14 H2 V11 Z M9 4 L12 7" />
+  </svg>
+);
+
 export function SketchAvatar({
   size = 22,
   letter = 'M',

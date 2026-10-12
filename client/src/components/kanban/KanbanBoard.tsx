@@ -12,11 +12,12 @@ import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable';
 import { C, FONTS } from '../../theme';
 import type { StatusKey } from '../../theme';
-import { SketchPill } from '../ui/SketchBox';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCardOverlay } from './TaskCard';
 import { AddTaskModal } from './AddTaskModal';
-import type { Task, Status } from '../../types';
+import { TaskFilters, defaultFilters } from './TaskFilters';
+import type { TaskFilterState } from './TaskFilters';
+import type { Task, Status, Topic, Project } from '../../types';
 
 interface Props {
   tasks: Task[];
@@ -26,22 +27,91 @@ interface Props {
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   focusedTaskId?: string | null;
   onClearFocus?: () => void;
+  topics?: Topic[];
+  projects?: Project[];
+  onAddTopic?: (name: string) => Promise<Topic>;
+  onAddProject?: (name: string, topicId: string) => Promise<Project>;
 }
 
 const STATUSES: StatusKey[] = ['yts', 'proc', 'rev', 'inv', 'done'];
 
-export function KanbanBoard({ tasks, onTaskClick, onMoveTask, onReorderTasks, onAddTask, focusedTaskId, onClearFocus }: Props) {
+function applyFilters(tasks: Task[], filters: TaskFilterState): Task[] {
+  return tasks.filter((t) => {
+    // Topic filter
+    if (filters.topicId !== 'all') {
+      if (filters.topicId === 'none') {
+        if (t.topicId) return false;
+      } else {
+        if (t.topicId !== filters.topicId) return false;
+      }
+    }
+
+    // Project filter
+    if (filters.projectId !== 'all') {
+      if (filters.projectId === 'none') {
+        if (t.projectId) return false;
+      } else {
+        if (t.projectId !== filters.projectId) return false;
+      }
+    }
+
+    // Tag filter
+    if (filters.tag !== 'all') {
+      if (filters.tag === 'none') {
+        if (t.tag && t.tag.trim() !== '') return false;
+      } else {
+        if (t.tag !== filters.tag) return false;
+      }
+    }
+
+    // Priority filter
+    if (filters.priority !== 'all') {
+      if (filters.priority === 'none') {
+        if (t.priority) return false;
+      } else {
+        if (t.priority !== filters.priority) return false;
+      }
+    }
+
+    // Due date range
+    if (filters.dueDateFrom && t.dueDate) {
+      if (t.dueDate < filters.dueDateFrom) return false;
+    }
+    if (filters.dueDateTo && t.dueDate) {
+      if (t.dueDate > filters.dueDateTo) return false;
+    }
+    // If due date filter is set but task has no due date, exclude it
+    if ((filters.dueDateFrom || filters.dueDateTo) && !t.dueDate) return false;
+
+    // Added date range (createdAt)
+    if (filters.addedDateFrom && t.createdAt) {
+      const createdDate = t.createdAt.split('T')[0];
+      if (createdDate < filters.addedDateFrom) return false;
+    }
+    if (filters.addedDateTo && t.createdAt) {
+      const createdDate = t.createdAt.split('T')[0];
+      if (createdDate > filters.addedDateTo) return false;
+    }
+
+    return true;
+  });
+}
+
+export function KanbanBoard({ tasks, onTaskClick, onMoveTask, onReorderTasks, onAddTask, focusedTaskId, onClearFocus, topics = [], projects = [], onAddTopic, onAddProject }: Props) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [addingToStatus, setAddingToStatus] = useState<StatusKey | null>(null);
-  const [groupBy, setGroupBy] = useState<'none' | 'area'>('none');
+  const [filters, setFilters] = useState<TaskFilterState>(defaultFilters);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
+  const existingTags = [...new Set(tasks.map((t) => t.tag).filter(Boolean))];
+  const filteredTasks = applyFilters(tasks, filters);
+
   const tasksByStatus = (status: StatusKey) =>
-    tasks.filter((t) => t.status === status);
+    filteredTasks.filter((t) => t.status === status);
 
   const findTaskStatus = (taskId: string): StatusKey | null => {
     const t = tasks.find((t) => t.id === taskId);
@@ -110,22 +180,14 @@ export function KanbanBoard({ tasks, onTaskClick, onMoveTask, onReorderTasks, on
     >
       {/* board header */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
-        <span style={{ fontFamily: FONTS.caveat, fontSize: 26, fontWeight: 700, color: C.ink }}>
+        <span style={{ fontFamily: FONTS.caveat, fontSize: '1.625rem', fontWeight: 700, color: C.ink }}>
           Board
         </span>
-        <span style={{ fontFamily: FONTS.kalam, fontSize: 11, color: C.pencil }}>
+        <span style={{ fontFamily: FONTS.kalam, fontSize: '0.6875rem', color: C.pencil }}>
           drag cards → change status
         </span>
         <div style={{ flex: 1 }} />
-        <SketchPill color={C.pencil}>filter</SketchPill>
-        <button
-          onClick={() => setGroupBy((g) => (g === 'none' ? 'area' : 'none'))}
-          style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}
-        >
-          <SketchPill color={groupBy === 'area' ? C.coral : C.pencil}>
-            group: {groupBy}
-          </SketchPill>
-        </button>
+        <TaskFilters filters={filters} onChange={setFilters} existingTags={existingTags} topics={topics} projects={projects} />
       </div>
 
       {/* columns */}
@@ -169,6 +231,11 @@ export function KanbanBoard({ tasks, onTaskClick, onMoveTask, onReorderTasks, on
           defaultStatus={addingToStatus}
           onAdd={onAddTask}
           onClose={() => setAddingToStatus(null)}
+          existingTags={existingTags}
+          topics={topics}
+          projects={projects}
+          onAddTopic={onAddTopic}
+          onAddProject={onAddProject}
         />
       )}
     </div>

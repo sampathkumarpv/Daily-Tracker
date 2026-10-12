@@ -9,7 +9,8 @@ export interface ApiTask {
   priority: string | null;
   dueDate: string | null;
   description: string | null;
-  area: string | null;
+  topicId: string | null;
+  projectId: string | null;
   subtasks: Array<{ id: string; text: string; done: boolean }>;
   notecardIds: string[];
   createdAt: string;
@@ -24,7 +25,9 @@ function toTask(t: ApiTask): Task {
     priority: (t.priority ?? undefined) as Task['priority'],
     dueDate: t.dueDate ?? undefined,
     description: t.description ?? undefined,
-    area: t.area ?? undefined,
+    // Ensure topicId and projectId are strings (backend may return numbers)
+    topicId: t.topicId != null ? String(t.topicId) : undefined,
+    projectId: t.projectId != null ? String(t.projectId) : undefined,
     subtasks: t.subtasks,
     notecardIds: t.notecardIds,
     createdAt: t.createdAt,

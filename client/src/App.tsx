@@ -15,6 +15,8 @@ import { NotebookDetail } from './components/notebook/NotebookDetail';
 import { NotecardEditor } from './components/notebook/NotecardEditor';
 import { TaskModal } from './components/modal/TaskModal';
 import { CardPickerModal } from './components/modal/CardPickerModal';
+import { TopicsManager } from './components/topics/TopicsManager';
+import { TopicDetailView } from './components/topics/TopicDetailView';
 import type { Status } from './types';
 
 // Parse URL for calendar params
@@ -45,6 +47,9 @@ export default function App() {
   const { toasts, dismissToast, showReminder } = useToasts();
   const [themePanelOpen, setThemePanelOpen] = useState(false);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+
+  // Selected topic for topic-detail view
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
 
   // Calendar URL state
   const [calendarParams, setCalendarParams] = useState(getCalendarParamsFromUrl);
@@ -113,6 +118,11 @@ export default function App() {
       case 'today': return 'Today';
       case 'calendar': return 'Calendar';
       case 'notebooks': return 'Notebooks';
+      case 'topics': return 'Topics & Projects';
+      case 'topic-detail': {
+        const topic = store.topics.find(t => t.id === selectedTopicId);
+        return topic?.name ?? 'Topic';
+      }
       case 'notebook-detail': return selectedNotebook?.name ?? 'Notebook';
       case 'notecard-editor': return selectedNotecard
         ? `${selectedNotecard.notebookName} · ${selectedNotecard.title}`
@@ -150,6 +160,12 @@ export default function App() {
     }
   }, [focusedTaskId]);
 
+  // Open topic detail view
+  const handleOpenTopic = useCallback((topicId: string) => {
+    setSelectedTopicId(topicId);
+    store.setView('topic-detail');
+  }, [store.setView]);
+
   const renderMain = () => {
     switch (store.activeView) {
       case 'today':
@@ -166,6 +182,35 @@ export default function App() {
           />
         );
 
+      case 'topics':
+        return (
+          <TopicsManager
+            topics={store.topics}
+            projects={store.projects}
+            onAddTopic={store.addTopic}
+            onUpdateTopic={store.updateTopic}
+            onDeleteTopic={store.deleteTopic}
+            onAddProject={store.addProject}
+            onUpdateProject={store.updateProject}
+            onDeleteProject={store.deleteProject}
+            onBack={() => store.setView('board')}
+          />
+        );
+
+      case 'topic-detail': {
+        const topic = store.topics.find(t => t.id === selectedTopicId);
+        if (!topic) return null;
+        return (
+          <TopicDetailView
+            topic={topic}
+            projects={store.projects}
+            tasks={store.tasks}
+            onTaskClick={store.openTask}
+            onBack={() => store.setView('board')}
+          />
+        );
+      }
+
       case 'board':
         return (
           <KanbanBoard
@@ -176,14 +221,18 @@ export default function App() {
             onAddTask={store.addTask}
             focusedTaskId={focusedTaskId}
             onClearFocus={handleClearFocus}
+            topics={store.topics}
+            projects={store.projects}
+            onAddTopic={store.addTopic}
+            onAddProject={store.addProject}
           />
         );
 
       case 'all':
-        return <AllTasksView tasks={store.tasks} onTaskClick={store.openTask} onAddTask={store.addTask} onDeleteTask={store.deleteTask} filterStatus="all" />;
+        return <AllTasksView tasks={store.tasks} onTaskClick={store.openTask} onAddTask={store.addTask} onDeleteTask={store.deleteTask} filterStatus="all" topics={store.topics} projects={store.projects} onAddTopic={store.addTopic} onAddProject={store.addProject} />;
 
       case 'done':
-        return <AllTasksView tasks={store.tasks} onTaskClick={store.openTask} onDeleteTask={store.deleteTask} filterStatus="done" />;
+        return <AllTasksView tasks={store.tasks} onTaskClick={store.openTask} onDeleteTask={store.deleteTask} filterStatus="done" topics={store.topics} projects={store.projects} onAddTopic={store.addTopic} onAddProject={store.addProject} />;
 
       case 'notebooks':
         return (
@@ -283,9 +332,13 @@ export default function App() {
           activeView={store.activeView}
           onNavigate={store.setView}
           onOpenNotebook={store.openNotebook}
+          onOpenTopic={handleOpenTopic}
           notebooks={store.notebooks}
           taskCounts={taskCounts}
           pendingRemindersCount={store.pendingRemindersCount}
+          topics={store.topics}
+          projects={store.projects}
+          selectedTopicId={store.activeView === 'topic-detail' ? selectedTopicId : null}
         />
 
         <main
@@ -317,6 +370,10 @@ export default function App() {
             store.updateTask(selectedTask.id, { subtasks: [...selectedTask.subtasks, sub] });
           }}
           onUpdateTask={(patch) => store.updateTask(selectedTask.id, patch)}
+          onDeleteTask={() => {
+            store.deleteTask(selectedTask.id);
+            store.closeTask();
+          }}
         />
       )}
 

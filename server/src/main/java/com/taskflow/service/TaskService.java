@@ -55,7 +55,8 @@ public class TaskService {
         task.setPriority(req.priority());
         task.setDueDate(req.dueDate());
         task.setDescription(req.description());
-        task.setArea(req.area());
+        task.setTopicId(req.topicId());
+        task.setProjectId(req.projectId());
         task = taskRepo.save(task);
 
         final Long taskId = task.getId();
@@ -81,7 +82,8 @@ public class TaskService {
         if (req.priority() != null) task.setPriority(req.priority());
         if (req.dueDate() != null) task.setDueDate(req.dueDate());
         if (req.description() != null) task.setDescription(req.description());
-        if (req.area() != null) task.setArea(req.area());
+        if (req.topicId() != null) task.setTopicId(req.topicId());
+        if (req.projectId() != null) task.setProjectId(req.projectId());
         task.setUpdatedAt(System.currentTimeMillis());
 
         return toResponse(taskRepo.save(task));
@@ -185,7 +187,8 @@ public class TaskService {
             task.getPriority(),
             task.getDueDate(),
             task.getDescription(),
-            task.getArea(),
+            task.getTopicId(),
+            task.getProjectId(),
             subs.stream().map(s -> new SubtaskDto(s.getId(), s.getText(), s.getDone())).toList(),
             notecardLinks.stream()
                 .sorted(Comparator.comparingInt(TaskNotecard::getPosition))

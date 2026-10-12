@@ -10,7 +10,8 @@ public record TaskResponse(
     String priority,
     String dueDate,
     String description,
-    String area,
+    Long topicId,
+    Long projectId,
     List<SubtaskDto> subtasks,
     List<Long> notecardIds,
     String createdAt

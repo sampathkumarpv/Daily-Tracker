@@ -19,7 +19,13 @@ public class Task {
     private String dueDate;
 
     private String description;
-    private String area;
+
+    @Column(name = "\"topicId\"")
+    private Long topicId;
+
+    @Column(name = "\"projectId\"")
+    private Long projectId;
+
     private Integer position;
 
     @Column(name = "\"parentTaskId\"")
@@ -66,8 +72,11 @@ public class Task {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public String getArea() { return area; }
-    public void setArea(String area) { this.area = area; }
+    public Long getTopicId() { return topicId; }
+    public void setTopicId(Long topicId) { this.topicId = topicId; }
+
+    public Long getProjectId() { return projectId; }
+    public void setProjectId(Long projectId) { this.projectId = projectId; }
 
     public Integer getPosition() { return position; }
     public void setPosition(Integer position) { this.position = position; }

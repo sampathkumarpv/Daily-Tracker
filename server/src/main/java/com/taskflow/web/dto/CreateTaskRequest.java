@@ -9,7 +9,8 @@ public record CreateTaskRequest(
     String priority,
     String dueDate,
     String description,
-    String area,
+    Long topicId,
+    Long projectId,
     List<SubtaskRequest> subtasks
 ) {
     public CreateTaskRequest {
